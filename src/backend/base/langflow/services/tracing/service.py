@@ -40,6 +40,12 @@ def _get_langfuse_tracer():
     return LangFuseTracer
 
 
+def _get_phoenix_tracer():
+    from langflow.services.tracing.phoenix import PhoenixTracer
+
+    return PhoenixTracer
+
+
 class TracingService(Service):
     name = "tracing_service"
 
@@ -111,6 +117,7 @@ class TracingService(Service):
             await asyncio.to_thread(self._initialize_langsmith_tracer)
             await asyncio.to_thread(self._initialize_langwatch_tracer)
             await asyncio.to_thread(self._initialize_langfuse_tracer)
+            await asyncio.to_thread(self._initialize_phoenix_tracer)
         except Exception:  # noqa: BLE001
             logger.opt(exception=True).debug("Error initializing tracers")
 
@@ -139,6 +146,16 @@ class TracingService(Service):
         self.project_name = os.getenv("LANGCHAIN_PROJECT", "Langflow")
         langfuse_tracer = _get_langfuse_tracer()
         self._tracers["langfuse"] = langfuse_tracer(
+            trace_name=self.run_name,
+            trace_type="chain",
+            project_name=self.project_name,
+            trace_id=self.run_id,
+        )
+
+    def _initialize_phoenix_tracer(self) -> None:
+        self.project_name = os.getenv("PHOENIX_PROJECT_NAME", "Langflow")
+        phoenix_tracer = _get_phoenix_tracer()
+        self._tracers["phoenix"] = phoenix_tracer(
             trace_name=self.run_name,
             trace_type="chain",
             project_name=self.project_name,
