@@ -111,6 +111,7 @@ dependencies = [
     "langchain-elasticsearch>=0.2.0",
     "langchain-ollama>=0.2.0",
     "arize-phoenix-otel>=0.6.1",
+    "openinference-instrumentation-langchain>=0.1.29",
 ]
 
 [project.urls]

@@ -3553,6 +3553,7 @@ dependencies = [
     { name = "networkx" },
     { name = "nltk" },
     { name = "numexpr" },
+    { name = "openinference-instrumentation-langchain" },
     { name = "opensearch-py" },
     { name = "pgvector" },
     { name = "psycopg" },
@@ -3599,7 +3600,7 @@ local = [
     { name = "sentence-transformers" },
 ]
 
-[package.dependency-groups]
+[package.dev-dependencies]
 dev = [
     { name = "asgi-lifespan" },
     { name = "dictdiffer" },
@@ -3702,6 +3703,7 @@ requires-dist = [
     { name = "networkx", specifier = ">=3.1" },
     { name = "nltk", specifier = ">=3.9.1" },
     { name = "numexpr", specifier = ">=2.8.6" },
+    { name = "openinference-instrumentation-langchain", specifier = ">=0.1.29" },
     { name = "opensearch-py", specifier = ">=2.7.1" },
     { name = "pgvector", specifier = ">=0.2.3" },
     { name = "psycopg", specifier = ">=3.1.9" },
@@ -3729,7 +3731,7 @@ requires-dist = [
     { name = "zep-python", specifier = ">=2.0.0" },
 ]
 
-[package.metadata.dependency-groups]
+[package.metadata.requires-dev]
 dev = [
     { name = "asgi-lifespan", specifier = ">=2.1.0" },
     { name = "dictdiffer", specifier = ">=0.9.0" },
@@ -3882,7 +3884,7 @@ local = [
     { name = "sentence-transformers" },
 ]
 
-[package.dependency-groups]
+[package.dev-dependencies]
 dev = [
     { name = "asgi-lifespan" },
     { name = "pytest-codspeed" },
@@ -3991,7 +3993,7 @@ requires-dist = [
     { name = "vulture", marker = "extra == 'dev'", specifier = ">=2.11" },
 ]
 
-[package.metadata.dependency-groups]
+[package.metadata.requires-dev]
 dev = [
     { name = "asgi-lifespan", specifier = ">=2.1.0" },
     { name = "pytest-codspeed", specifier = ">=3.0.0" },
@@ -4896,6 +4898,37 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/12/00/0983e56ca4535394a34f3ce25429ce6710878f2f8d7931973d04364ca922/openai-1.52.0.tar.gz", hash = "sha256:95c65a5f77559641ab8f3e4c3a050804f7b51d278870e2ec1f7444080bfe565a", size = 309426 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/39/1e/9dc3ccee95d0e16e54e353d3c355bb7cc506d56a2dbb0a07bc739cc48eac/openai-1.52.0-py3-none-any.whl", hash = "sha256:0c249f20920183b0a2ca4f7dba7b0452df3ecd0fa7985eb1d91ad884bc3ced9c", size = 386947 },
+]
+
+[[package]]
+name = "openinference-instrumentation"
+version = "0.1.18"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "openinference-semantic-conventions" },
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-sdk" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/46/00/f356485412eec1f6cdc7e01fcbf1814e66ccb94e0c48bd9b4d0f0dacea6c/openinference_instrumentation-0.1.18.tar.gz", hash = "sha256:d60b54a82173b31e551739c1ee04cbd9dfb33f7846c46568663bcc03e3a990f4", size = 11699 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c0/6c/cc3c1b0c85719a2729ae4ba4562c01e12dd20f744bcf0a1b3e3eb3da7a72/openinference_instrumentation-0.1.18-py3-none-any.whl", hash = "sha256:873d1851465588b01a3d568b8efb7c6630d7094e66f56415fbf47377c0ce8659", size = 14281 },
+]
+
+[[package]]
+name = "openinference-instrumentation-langchain"
+version = "0.1.29"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "openinference-instrumentation" },
+    { name = "openinference-semantic-conventions" },
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-instrumentation" },
+    { name = "opentelemetry-semantic-conventions" },
+    { name = "wrapt" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/10/d2/185e4dd18431f35faba90482f511328d283e71ed12737e050664f7b5efeb/openinference_instrumentation_langchain-0.1.29.tar.gz", hash = "sha256:f6c10079c91f810cff39ff24c278e41d16df0c3706b230e1859f46cad20f8e0b", size = 45868 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/eb/ba/b0855a5f9bb565e462d85ecfad63d108c4c4bc209a34850623273f7dbcef/openinference_instrumentation_langchain-0.1.29-py3-none-any.whl", hash = "sha256:9faaedb62f90ca8099b48c0b9ded97fe109a646b756f4bf7c98479b500a8446d", size = 17043 },
 ]
 
 [[package]]

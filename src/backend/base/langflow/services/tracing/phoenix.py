@@ -40,7 +40,9 @@ if TYPE_CHECKING:
 class PhoenixTracer(BaseTracer):
     flow_id: str
 
-    def __init__(self, trace_name: str, trace_type: str, project_name: str, trace_id: UUID):
+    def __init__(
+        self, trace_name: str, trace_type: str, project_name: str, trace_id: UUID
+    ):
         """Initializes the PhoenixTracer instance and sets up a root span."""
         self.trace_name = trace_name
         self.trace_type = trace_type
@@ -62,7 +64,8 @@ class PhoenixTracer(BaseTracer):
                 start_time=self._get_current_timestamp(),
             ) as root_span:
                 root_span.set_attribute(
-                    SpanAttributes.OPENINFERENCE_SPAN_KIND, self.trace_type)
+                    SpanAttributes.OPENINFERENCE_SPAN_KIND, self.trace_type
+                )
                 root_span.set_status(Status(StatusCode.OK))
                 self.propagator.inject(carrier=self.carrier)
 
@@ -83,17 +86,29 @@ class PhoenixTracer(BaseTracer):
         if api_key is None:
             return False
 
+        os.environ["OTEL_EXPORTER_OTLP_HEADERS"] = f"api_key={api_key}"
+        os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={api_key}"
+
         try:
-            os.environ["OTEL_EXPORTER_OTLP_HEADERS"] = f"api_key={api_key}"
-            os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={api_key}"
-
             from phoenix.otel import register
-            self.tracer_provider = register(
-                project_name=self.project_name, set_global_tracer_provider=False)
 
+            self.tracer_provider = register(
+                project_name=self.project_name, set_global_tracer_provider=False
+            )
         except ImportError:
             logger.exception(
-                "Could not import phoenix. Please install it with `pip install arize-phoenix-otel`.")
+                "Could not import phoenix. Please install it with `pip install arize-phoenix-otel`."
+            )
+            return False
+
+        try:
+            from openinference.instrumentation.langchain import LangChainInstrumentor
+
+            LangChainInstrumentor().instrument(tracer_provider=self.tracer_provider)
+        except ImportError:
+            logger.exception(
+                "Could not import LangChainInstrumentor. Please install it with `pip install openinference-instrumentation-langchain`."
+            )
             return False
 
         return True
@@ -117,7 +132,7 @@ class PhoenixTracer(BaseTracer):
         child_span = self.tracer.start_span(
             name=span_name,
             context=span_context,
-            start_time=self._get_current_timestamp()
+            start_time=self._get_current_timestamp(),
         )
 
         if trace_type == "prompt":
@@ -129,14 +144,17 @@ class PhoenixTracer(BaseTracer):
 
         processed_inputs = self._convert_to_phoenix_types(
             inputs) if inputs else {}
-        processed_metadata = self._convert_to_phoenix_types(
-            metadata) if metadata else {}
+        processed_metadata = (
+            self._convert_to_phoenix_types(metadata) if metadata else {}
+        )
 
         try:
             child_span.set_attribute(
-                SpanAttributes.INPUT_VALUE, processed_inputs["code"])
+                SpanAttributes.INPUT_VALUE, processed_inputs["code"]
+            )
             child_span.set_attribute(
-                SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.TEXT.value)
+                SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.TEXT.value
+            )
         except KeyError:
             logger.exception("Unable to find code for the component.")
 
@@ -146,7 +164,7 @@ class PhoenixTracer(BaseTracer):
                     self._zip_keys_values(
                         ("inputs",), processed_inputs.items()),
                     self._zip_keys_values(
-                        ("metadata",), processed_metadata.items())
+                        ("metadata",), processed_metadata.items()),
                 )
             )
         )
@@ -171,17 +189,23 @@ class PhoenixTracer(BaseTracer):
 
         processed_outputs = self._convert_to_phoenix_types(
             outputs) if outputs else {}
-        logs_dicts = [log if isinstance(
-            log, dict) else log.model_dump() for log in logs]
-        processed_logs = self._convert_to_phoenix_types(
-            {"logs": {log.get("name"): log for log in logs_dicts}}) if logs else {}
+        logs_dicts = [
+            log if isinstance(log, dict) else log.model_dump() for log in logs
+        ]
+        processed_logs = (
+            self._convert_to_phoenix_types(
+                {"logs": {log.get("name"): log for log in logs_dicts}}
+            )
+            if logs
+            else {}
+        )
 
         attributes = dict(
             self._flatten(
                 chain(
                     self._zip_keys_values(
                         ("outputs",), processed_outputs.items()),
-                    self._zip_keys_values(("logs",), processed_logs.items())
+                    self._zip_keys_values(("logs",), processed_logs.items()),
                 )
             )
         )
@@ -210,7 +234,9 @@ class PhoenixTracer(BaseTracer):
 
     def _convert_to_phoenix_types(self, io_dict: dict[str, Any]):
         """Converts data types to Phoenix-compatible formats."""
-        return {key: self._convert_to_phoenix_type(value) for key, value in io_dict.items()}
+        return {
+            key: self._convert_to_phoenix_type(value) for key, value in io_dict.items()
+        }
 
     def _convert_to_phoenix_type(self, value):
         """Recursively converts a value to a Phoenix-compatible type."""
@@ -245,30 +271,43 @@ class PhoenixTracer(BaseTracer):
         error_message = None
         if error:
             string_stacktrace = traceback.format_exception(error)
-            error_message = f"{error.__class__.__name__}: {error}\n\n{string_stacktrace}"
+            error_message = (
+                f"{error.__class__.__name__}: {error}\n\n{string_stacktrace}"
+            )
         return error_message
 
     def _get_current_timestamp(self) -> int:
         """Gets the current UTC timestamp in nanoseconds."""
         return int(datetime.now(timezone.utc).timestamp() * 1_000_000_000)
 
-    def _zip_keys_values(self, keys: Tuple[str], values: Iterable[Tuple[str, Any]]) -> Iterator[Tuple[str, Any]]:
+    def _zip_keys_values(
+        self, keys: Tuple[str], values: Iterable[Tuple[str, Any]]
+    ) -> Iterator[Tuple[str, Any]]:
         """Helper to zip keys with values."""
         for key, value in values:
             yield (*keys, key), value
 
-    def _flatten(self, key_values: Iterable[Tuple[Tuple[str, ...], Any]]) -> Iterator[Tuple[str, AttributeValue]]:
+    def _flatten(
+        self, key_values: Iterable[Tuple[Tuple[str, ...], Any]]
+    ) -> Iterator[Tuple[str, AttributeValue]]:
         """Recursively flattens nested dictionaries and lists into dot-notated attributes."""
         for keys, value in key_values:
             if isinstance(value, Mapping):
-                for sub_key, sub_value in self._flatten(((keys + (str(sub_key),)), sub_value) for sub_key, sub_value in value.items()):
+                for sub_key, sub_value in self._flatten(
+                    ((keys + (str(sub_key),)), sub_value)
+                    for sub_key, sub_value in value.items()
+                ):
                     yield sub_key, sub_value
             elif isinstance(value, list):
                 for idx, item in enumerate(value):
-                    for sub_key, sub_value in self._flatten(((keys + (str(idx),)), item)):
+                    for sub_key, sub_value in self._flatten(
+                        ((keys + (str(idx),)), item)
+                    ):
                         yield sub_key, sub_value
             else:
-                yield ".".join(keys), value if not isinstance(value, Enum) else value.value
+                yield ".".join(keys), value if not isinstance(
+                    value, Enum
+                ) else value.value
 
     def get_langchain_callback(self) -> BaseCallbackHandler | None:
         """Returns the LangChain callback handler if applicable."""
