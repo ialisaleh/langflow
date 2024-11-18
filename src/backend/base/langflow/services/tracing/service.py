@@ -41,7 +41,7 @@ def _get_langfuse_tracer():
 
 
 def _get_phoenix_tracer():
-    from langflow.services.tracing.phoenix import PhoenixTracer
+    from langflow.services.tracing.arize_phoenix import PhoenixTracer
 
     return PhoenixTracer
 
