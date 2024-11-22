@@ -86,22 +86,29 @@ class ArizePhoenixTracer(BaseTracer):
 
     def setup_arize_phoenix(self) -> bool:
         """Configures Arize/Phoenix specific environment variables and registers the tracer provider."""
-        arize_phoenix_batch = os.getenv("ARIZE_PHOENIX_BATCH", False)
+        arize_phoenix_batch = os.getenv("ARIZE_PHOENIX_BATCH", "False").lower() in (
+            "true", "t", "yes", "y", "1")
 
+        # Arize Config
         arize_api_key = os.getenv("ARIZE_API_KEY", None)
         arize_space_id = os.getenv("ARIZE_SPACE_ID", None)
+        arize_collector_endpoint = os.getenv(
+            "ARIZE_COLLECTOR_ENDPOINT", "https://otlp.arize.com")
         enable_arize_tracing = True if arize_api_key and arize_space_id else False
-        ARIZE_ENDPOINT = "https://otlp.arize.com/v1"
+        ARIZE_ENDPOINT = f"{arize_collector_endpoint}/v1"
         ARIZE_HEADERS = {
             "api_key": arize_api_key,
             "space_id": arize_space_id,
             "authorization": f"Bearer {arize_api_key}",
         }
 
+        # Phoenix Config
         phoenix_api_key = os.getenv("PHOENIX_API_KEY", None)
+        phoenix_collector_endpoint = os.getenv(
+            "PHOENIX_COLLECTOR_ENDPOINT", "https://app.phoenix.arize.com")
         enable_phoenix_tracing = True if phoenix_api_key else False
-        HOSTED_PHOENIX_ENDPOINT = "https://app.phoenix.arize.com/v1/traces"
-        HOSTED_PHOENIX_HEADERS = {
+        PHOENIX_ENDPOINT = f"{phoenix_collector_endpoint}/v1/traces"
+        PHOENIX_HEADERS = {
             "api_key": phoenix_api_key,
             "authorization": f"Bearer {phoenix_api_key}",
         }
@@ -141,8 +148,8 @@ class ArizePhoenixTracer(BaseTracer):
                 tracer_provider.add_span_processor(
                     span_processor=span_processor(
                         span_exporter=HTTPSpanExporter(
-                            endpoint=HOSTED_PHOENIX_ENDPOINT,
-                            headers=HOSTED_PHOENIX_HEADERS,
+                            endpoint=PHOENIX_ENDPOINT,
+                            headers=PHOENIX_HEADERS,
                         ),
                     )
                 )
