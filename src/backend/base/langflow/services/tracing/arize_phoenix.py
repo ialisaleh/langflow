@@ -1,23 +1,20 @@
 from __future__ import annotations
 
+import json
+import math
 import os
 import traceback
 import types
 from datetime import datetime, timezone
-from enum import Enum
-from itertools import chain
 from typing import (
     TYPE_CHECKING,
     Any,
     Dict,
-    Iterable,
-    Iterator,
-    Mapping,
     Sequence,
-    Tuple,
 )
 
 from langchain_core.documents import Document
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from loguru import logger
 from openinference.semconv.trace import OpenInferenceMimeTypeValues, SpanAttributes
 from opentelemetry.semconv.trace import SpanAttributes as OTELSpanAttributes
@@ -87,13 +84,19 @@ class ArizePhoenixTracer(BaseTracer):
     def setup_arize_phoenix(self) -> bool:
         """Configures Arize/Phoenix specific environment variables and registers the tracer provider."""
         arize_phoenix_batch = os.getenv("ARIZE_PHOENIX_BATCH", "False").lower() in (
-            "true", "t", "yes", "y", "1")
+            "true",
+            "t",
+            "yes",
+            "y",
+            "1",
+        )
 
         # Arize Config
         arize_api_key = os.getenv("ARIZE_API_KEY", None)
         arize_space_id = os.getenv("ARIZE_SPACE_ID", None)
         arize_collector_endpoint = os.getenv(
-            "ARIZE_COLLECTOR_ENDPOINT", "https://otlp.arize.com")
+            "ARIZE_COLLECTOR_ENDPOINT", "https://otlp.arize.com"
+        )
         enable_arize_tracing = True if arize_api_key and arize_space_id else False
         ARIZE_ENDPOINT = f"{arize_collector_endpoint}/v1"
         ARIZE_HEADERS = {
@@ -105,7 +108,8 @@ class ArizePhoenixTracer(BaseTracer):
         # Phoenix Config
         phoenix_api_key = os.getenv("PHOENIX_API_KEY", None)
         phoenix_collector_endpoint = os.getenv(
-            "PHOENIX_COLLECTOR_ENDPOINT", "https://app.phoenix.arize.com")
+            "PHOENIX_COLLECTOR_ENDPOINT", "https://app.phoenix.arize.com"
+        )
         enable_phoenix_tracing = True if phoenix_api_key else False
         PHOENIX_ENDPOINT = f"{phoenix_collector_endpoint}/v1/traces"
         PHOENIX_HEADERS = {
@@ -216,31 +220,17 @@ class ArizePhoenixTracer(BaseTracer):
         processed_inputs = (
             self._convert_to_arize_phoenix_types(inputs) if inputs else {}
         )
+        if processed_inputs:
+            child_span.set_attribute(
+                SpanAttributes.INPUT_VALUE, self._safe_json_dumps(processed_inputs))
+            child_span.set_attribute(
+                SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
+
         processed_metadata = (
             self._convert_to_arize_phoenix_types(metadata) if metadata else {}
         )
-
-        try:
-            child_span.set_attribute(
-                SpanAttributes.INPUT_VALUE, processed_inputs["code"]
-            )
-            child_span.set_attribute(
-                SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.TEXT.value
-            )
-        except KeyError:
-            logger.exception("Unable to find code for the component.")
-
-        attributes = dict(
-            self._flatten(
-                chain(
-                    self._zip_keys_values(
-                        ("inputs",), processed_inputs.items()),
-                    self._zip_keys_values(
-                        ("metadata",), processed_metadata.items()),
-                )
-            )
-        )
-        child_span.set_attributes(attributes)
+        if processed_metadata:
+            child_span.set_attribute("metadata", processed_metadata)
 
         self.child_spans[trace_id] = child_span
 
@@ -262,6 +252,12 @@ class ArizePhoenixTracer(BaseTracer):
         processed_outputs = (
             self._convert_to_arize_phoenix_types(outputs) if outputs else {}
         )
+        if processed_outputs:
+            child_span.set_attribute(
+                SpanAttributes.OUTPUT_VALUE, self._safe_json_dumps(processed_outputs))
+            child_span.set_attribute(
+                SpanAttributes.OUTPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
+
         logs_dicts = [
             log if isinstance(log, dict) else log.model_dump() for log in logs
         ]
@@ -272,17 +268,8 @@ class ArizePhoenixTracer(BaseTracer):
             if logs
             else {}
         )
-
-        attributes = dict(
-            self._flatten(
-                chain(
-                    self._zip_keys_values(
-                        ("outputs",), processed_outputs.items()),
-                    self._zip_keys_values(("logs",), processed_logs.items()),
-                )
-            )
-        )
-        child_span.set_attributes(attributes)
+        if processed_logs:
+            child_span.set_attribute("logs", processed_logs)
 
         if error:
             error_string = self._error_to_string(error)
@@ -343,11 +330,17 @@ class ArizePhoenixTracer(BaseTracer):
         elif isinstance(value, Data):
             value = value.get_text()
 
+        elif isinstance(value, (BaseMessage, HumanMessage, SystemMessage)):
+            value = value.content
+
         elif isinstance(value, Document):
             value = value.page_content
 
         elif isinstance(value, (types.GeneratorType, types.NoneType)):
             value = str(value)
+
+        elif isinstance(value, float) and not math.isfinite(value):
+            value = "NaN"
 
         return value
 
@@ -365,34 +358,13 @@ class ArizePhoenixTracer(BaseTracer):
         """Gets the current UTC timestamp in nanoseconds."""
         return int(datetime.now(timezone.utc).timestamp() * 1_000_000_000)
 
-    def _zip_keys_values(
-        self, keys: Tuple[str], values: Iterable[Tuple[str, Any]]
-    ) -> Iterator[Tuple[str, Any]]:
-        """Helper to zip keys with values."""
-        for key, value in values:
-            yield (*keys, key), value
-
-    def _flatten(
-        self, key_values: Iterable[Tuple[Tuple[str, ...], Any]]
-    ) -> Iterator[Tuple[str, AttributeValue]]:
-        """Recursively flattens nested dictionaries and lists into dot-notated attributes."""
-        for keys, value in key_values:
-            if isinstance(value, Mapping):
-                for sub_key, sub_value in self._flatten(
-                    ((keys + (str(sub_key),)), sub_value)
-                    for sub_key, sub_value in value.items()
-                ):
-                    yield sub_key, sub_value
-            elif isinstance(value, list):
-                for idx, item in enumerate(value):
-                    for sub_key, sub_value in self._flatten(
-                        ((keys + (str(idx),)), item)
-                    ):
-                        yield sub_key, sub_value
-            else:
-                yield ".".join(keys), value if not isinstance(
-                    value, Enum
-                ) else value.value
+    def _safe_json_dumps(self, obj: Any, **kwargs: Any) -> str:
+        """
+        A convenience wrapper around `json.dumps` that ensures that any object can
+        be safely encoded without a `TypeError` and that non-ASCII Unicode
+        characters are not escaped.
+        """
+        return json.dumps(obj, default=str, ensure_ascii=False, **kwargs)
 
     def get_langchain_callback(self) -> BaseCallbackHandler | None:
         """Returns the LangChain callback handler if applicable."""
