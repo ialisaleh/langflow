@@ -229,6 +229,7 @@ import { FaApple, FaDiscord, FaGithub } from "react-icons/fa";
 import { AWSIcon } from "../icons/AWS";
 import { AirbyteIcon } from "../icons/Airbyte";
 import { AnthropicIcon } from "../icons/Anthropic";
+import { ArizeIcon } from "../icons/Arize";
 import { AssemblyAIIcon } from "../icons/AssemblyAI";
 import { AstraDBIcon } from "../icons/AstraDB";
 import { AzureIcon } from "../icons/Azure";
@@ -684,6 +685,7 @@ export const nodeIconsLucide: iconsType = {
   ZepMemory: ZepMemoryIcon,
   Langwatch: LangwatchIcon,
   Mem0,
+  Arize: ArizeIcon,
 
   //Node Icons
   model_specs: FileSliders,
